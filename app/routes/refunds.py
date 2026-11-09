@@ -1,6 +1,3 @@
-import os
-
-import psycopg
 from fastapi import APIRouter, Depends, HTTPException
 
 from app import ledger
@@ -40,17 +37,7 @@ def refund_summary(charge_id: str, store: Store = Depends(get_store)) -> RefundS
     charge = store.get_charge(charge_id)
     if charge is None:
         raise HTTPException(404, "Charge not found")
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        # One aggregate query instead of loading every refund row.
-        with psycopg.connect(url) as conn:
-            count, refunded = conn.execute(
-                "SELECT COUNT(*), COALESCE(SUM(amount_cents), 0) FROM refunds WHERE charge_id = %s",
-                (charge_id,),
-            ).fetchone()
-    else:
-        refunds = store.list_refunds(charge_id)
-        count, refunded = len(refunds), sum(r.amount_cents for r in refunds)
+    count, refunded = store.refund_totals(charge_id)
     return RefundSummaryOut(
         charge_id=charge_id,
         refund_count=count,

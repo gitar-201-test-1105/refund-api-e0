@@ -68,3 +68,11 @@ class PostgresStore:
                 " FROM refunds WHERE charge_id = %s ORDER BY created_at, id",
                 (charge_id,),
             ).fetchall()
+
+    def refund_totals(self, charge_id: str) -> tuple[int, int]:
+        with psycopg.connect(self._url) as conn:
+            count, refunded = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(amount_cents), 0) FROM refunds WHERE charge_id = %s",
+                (charge_id,),
+            ).fetchone()
+            return count, refunded
